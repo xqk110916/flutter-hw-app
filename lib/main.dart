@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -379,7 +380,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
           clearCurrentState();
           scanController.text = code;
         });
-        showToast('未找到容器');
+        showToast('未找到容器: $code');
         return;
       }
       setState(() {
@@ -396,10 +397,16 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
         scanController.text = actualCode;
         scanNotice = '该容器不在本次盘存列表中';
       });
-      showToast('该容器不在本次盘存列表中');
+      showToast('扫码成功：容器 $actualCode 不在盘存列表中（已设为盘盈）');
       return;
     }
     setCurrentFromMatch(actual, found);
+
+    if (actual != null) {
+      showToast('扫码成功：已匹配容器 $actualCode');
+    } else {
+      showToast('查询成功：已找到容器 $actualCode');
+    }
   }
 
   Map<String, dynamic>? parseQrActual(String rawCode) {
@@ -851,7 +858,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
         final now = DateTime.now();
         if (lastBackPressedAt != null &&
             now.difference(lastBackPressedAt!).inMilliseconds < 2000) {
-          Navigator.of(context).maybePop();
+          SystemNavigator.pop();
         } else {
           lastBackPressedAt = now;
           showToast('再按一次退出应用');
@@ -935,59 +942,119 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
 
   Widget buildStatsRow() {
     final stats = [
-      ('all', '已加载', totalCount, const Color(0xff14213d)),
-      ('checked', '已盘存', checkedCount, const Color(0xff14213d)),
-      ('unchecked', '未盘存', uncheckedCount, const Color(0xffb91c1c)),
-      ('abnormal', '异常', abnormalCount, const Color(0xffb45309)),
+      (
+        type: 'all',
+        label: '已加载',
+        count: totalCount,
+        selectedBg: const Color(0xffeff6ff),
+        selectedBorder: const Color(0xff3b82f6),
+        selectedText: const Color(0xff1e40af),
+        badgeColor: const Color(0xff2563eb),
+      ),
+      (
+        type: 'checked',
+        label: '已盘存',
+        count: checkedCount,
+        selectedBg: const Color(0xffecfdf5),
+        selectedBorder: const Color(0xff10b981),
+        selectedText: const Color(0xff065f46),
+        badgeColor: const Color(0xff059669),
+      ),
+      (
+        type: 'unchecked',
+        label: '未盘存',
+        count: uncheckedCount,
+        selectedBg: const Color(0xfffef2f2),
+        selectedBorder: const Color(0xffef4444),
+        selectedText: const Color(0xff991b1b),
+        badgeColor: const Color(0xffdc2626),
+      ),
+      (
+        type: 'abnormal',
+        label: '异常',
+        count: abnormalCount,
+        selectedBg: const Color(0xfffffbeb),
+        selectedBorder: const Color(0xfff59e0b),
+        selectedText: const Color(0xff92400e),
+        badgeColor: const Color(0xffd97706),
+      ),
     ];
+
     return Row(
       children: [
-        for (final stat in stats)
+        for (var i = 0; i < stats.length; i++) ...[
+          if (i > 0) const SizedBox(width: 10),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: InkWell(
-                onTap: hasData
-                    ? () => setState(() {
-                        activeListType = stat.$1;
+            child: InkWell(
+              onTap: hasData
+                  ? () => setState(() {
+                        activeListType = stats[i].type;
                       })
-                    : null,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: activeListType == stat.$1
-                        ? const Color(0xffeef6fc)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: activeListType == stat.$1
-                          ? const Color(0xff1f4e79)
-                          : const Color(0xffd8dee8),
-                      width: activeListType == stat.$1 ? 2 : 1,
+                  : null,
+              borderRadius: BorderRadius.circular(12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  color: activeListType == stats[i].type
+                      ? stats[i].selectedBg
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: activeListType == stats[i].type
+                        ? stats[i].selectedBorder
+                        : const Color(0xffe2e8f0),
+                    width: activeListType == stats[i].type ? 2 : 1,
+                  ),
+                  boxShadow: activeListType == stats[i].type
+                      ? [
+                          BoxShadow(
+                            color: stats[i].selectedBorder.withOpacity(0.12),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          )
+                        ]
+                      : [
+                          const BoxShadow(
+                            color: Color(0x05000000),
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          )
+                        ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${stats[i].count}',
+                      style: TextStyle(
+                        color: activeListType == stats[i].type
+                            ? stats[i].selectedText
+                            : stats[i].badgeColor,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${stat.$3}',
-                        style: TextStyle(
-                          color: stat.$4,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    const SizedBox(height: 2),
+                    Text(
+                      stats[i].label,
+                      style: TextStyle(
+                        color: activeListType == stats[i].type
+                            ? stats[i].selectedText.withOpacity(0.8)
+                            : const Color(0xff64748b),
+                        fontSize: 13,
+                        fontWeight: activeListType == stats[i].type
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
-                      Text(
-                        stat.$2,
-                        style: const TextStyle(color: Color(0xff64748b)),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
+        ]
       ],
     );
   }
@@ -1037,44 +1104,142 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        panel(
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xff1e3a8a), Color(0xff1f4e79)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xff1e3a8a).withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('当前任务单', style: TextStyle(color: Color(0xff64748b))),
+              const Row(
+                children: [
+                  Icon(Icons.assignment, color: Colors.white70, size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    '当前任务单',
+                    style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
               Text(
                 taskNumText,
                 style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 24,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
                 ),
               ),
-              Text('$warehouseCount 个库房 / $totalCount 个容器'),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '$warehouseCount 个库房 / $totalCount 个容器',
+                  style: const TextStyle(color: Color(0xe6ffffff), fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: scanController,
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => searchByInput(),
-                decoration: const InputDecoration(
-                  hintText: '扫描二维码 JSON 或输入容器号',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(),
-                ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xffe2e8f0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x04000000),
+                blurRadius: 6,
+                offset: Offset(0, 3),
+              )
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: scanController,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => searchByInput(),
+                      style: const TextStyle(fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: '输入容器号/扫描二维码 JSON',
+                        hintStyle: const TextStyle(color: Color(0xff94a3b8), fontSize: 13),
+                        filled: true,
+                        fillColor: const Color(0xfff8fafc),
+                        prefixIcon: const Icon(Icons.search, color: Color(0xff64748b), size: 20),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xffe2e8f0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xff3b82f6), width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton.icon(
+                    onPressed: openScanner,
+                    icon: const Icon(Icons.qr_code_scanner, size: 18),
+                    label: const Text('扫码', style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xff1f4e79),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 8),
-            FilledButton(onPressed: openScanner, child: const Text('扫码')),
-          ],
+              if (currentContainer != null) ...[
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: clearCurrent,
+                  icon: const Icon(Icons.clear_all, size: 16),
+                  label: const Text('清空当前查询'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xff64748b),
+                    side: const BorderSide(color: Color(0xffcbd5e1)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
-        OutlinedButton(onPressed: clearCurrent, child: const Text('清空当前查询')),
       ],
     );
   }
@@ -1320,9 +1485,27 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
             runSpacing: 8,
             children: [
               for (final item in quickRemarks)
-                ActionChip(
-                  label: Text(item),
-                  onPressed: () => appendQuickRemark(item),
+                Theme(
+                  data: Theme.of(context).copyWith(canvasColor: Colors.transparent),
+                  child: ActionChip(
+                    elevation: 0,
+                    pressElevation: 2,
+                    backgroundColor: const Color(0xfff1f5f9),
+                    side: const BorderSide(color: Color(0xffe2e8f0)),
+                    label: Text(
+                      item,
+                      style: const TextStyle(
+                        color: Color(0xff475569),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    onPressed: () => appendQuickRemark(item),
+                  ),
                 ),
             ],
           ),
@@ -1406,48 +1589,103 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
             {'label': '封记编码 1', 'value': container['sealCode1']},
             {'label': '封记编码 2', 'value': container['sealCode2']},
           ];
-    return Wrap(
-      runSpacing: 8,
-      children: [
-        for (final field in fields)
-          SizedBox(
-            width: MediaQuery.of(context).size.width >= 700
-                ? 260
-                : double.infinity,
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: Color(0xffedf2f7))),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${field['label'] ?? '-'}',
-                    style: const TextStyle(
-                      color: Color(0xff64748b),
-                      fontSize: 12,
-                    ),
-                  ),
-                  Text(displayValue(field['value'])),
-                ],
-              ),
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xfff8fafc),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xffe2e8f0)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cols = constraints.maxWidth >= 500 ? 2 : 1;
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: fields.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cols,
+              childAspectRatio: cols == 2 ? 3.5 : 5.0,
+              mainAxisSpacing: 0,
+              crossAxisSpacing: 0,
             ),
-          ),
-      ],
+            itemBuilder: (context, index) {
+              final field = fields[index];
+              final isRightCol = cols == 2 && index % 2 == 1;
+              final isBottomRow = index >= fields.length - cols;
+              return Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: isBottomRow ? BorderSide.none : const BorderSide(color: Color(0xffe2e8f0)),
+                    right: isRightCol ? BorderSide.none : const BorderSide(color: Color(0xffe2e8f0)),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '${field['label'] ?? '-'}',
+                      style: const TextStyle(
+                        color: Color(0xff64748b),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      displayValue(field['value']),
+                      style: const TextStyle(
+                        color: Color(0xff1e293b),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
   Widget resultButton(int value, String label) {
     final active = selectedResult == value;
+    final color = switch (value) {
+      0 => const Color(0xff10b981),
+      2 => const Color(0xff3b82f6),
+      1 => const Color(0xffef4444),
+      _ => const Color(0xff64748b),
+    };
     return Expanded(
       child: active
           ? FilledButton(
               onPressed: () => selectResult(value),
-              child: Text(label),
+              style: FilledButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.white,
+                elevation: 1,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
             )
           : OutlinedButton(
               onPressed: () => selectResult(value),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: color,
+                side: BorderSide(color: color.withOpacity(0.4)),
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
               child: Text(label),
             ),
     );

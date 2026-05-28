@@ -1,4 +1,4 @@
-# flutter_hw_app
+# hw_app
 
 A new Flutter project.
 

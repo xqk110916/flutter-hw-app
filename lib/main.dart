@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -58,6 +59,9 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
   int? selectedResult;
   bool currentShowsActual = false;
   DateTime? lastBackPressedAt;
+
+  String? _readPath;
+  String? _savePath;
 
   final scanController = TextEditingController();
   final remarkController = TextEditingController();
@@ -176,7 +180,16 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
     return resultLabel(selectedResult!);
   }
 
+  Future<void> loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _readPath = prefs.getString('hw-flutter-app.settings.read-path') ?? 'data/Document/hw/original';
+      _savePath = prefs.getString('hw-flutter-app.settings.save-path') ?? 'data/Document/hw/result';
+    });
+  }
+
   Future<void> loadDefaultFiles() async {
+    await loadSettings();
     setState(() => fileStatus = '读取工作文件');
     final prefs = await SharedPreferences.getInstance();
     final work = prefs.getString(workKey);
@@ -201,7 +214,132 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
       return;
     }
 
+    // Try auto-loading from default path
+    setState(() => fileStatus = '检测默认路径');
+    final readPath = _readPath ?? 'data/Document/hw/original';
+    try {
+      final dir = Directory(readPath);
+      if (await dir.exists()) {
+        final files = dir.listSync()
+            .whereType<File>()
+            .where((file) {
+              final name = file.path.toLowerCase();
+              return name.endsWith('.json') || name.endsWith('.txt');
+            })
+            .toList();
+        if (files.isNotEmpty) {
+          files.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+          final latestFile = files.first;
+          final content = await latestFile.readAsString();
+          final fileName = latestFile.path.split(RegExp(r'[/\\]')).last;
+          
+          final parsed = parseInventoryContent(content);
+          if (parsed != null) {
+            await prefs.setString(sourceKey, content);
+            await prefs.setString(workKey, jsonEncode(parsed));
+            await prefs.setString('hw-flutter-app.loaded-file-name', fileName);
+            setState(() {
+              taskData = parsed;
+              fileStatus = '自动导入: $fileName';
+            });
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('初始自动从默认路径读取文件失败: $e');
+    }
+
     setState(() => fileStatus = '等待导入');
+  }
+
+  Future<void> autoLoadFromDefaultPath() async {
+    final readPath = _readPath ?? 'data/Document/hw/original';
+    try {
+      final dir = Directory(readPath);
+      if (!await dir.exists()) {
+        showToast('默认读取目录不存在: $readPath');
+        return;
+      }
+      final files = dir.listSync()
+          .whereType<File>()
+          .where((file) {
+            final name = file.path.toLowerCase();
+            return name.endsWith('.json') || name.endsWith('.txt');
+          })
+          .toList();
+      if (files.isEmpty) {
+        showToast('默认读取目录下未找到 JSON 或 TXT 文件');
+        return;
+      }
+      files.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+      final latestFile = files.first;
+      final content = await latestFile.readAsString();
+      final fileName = latestFile.path.split(RegExp(r'[/\\]')).last;
+
+      final parsed = parseInventoryContent(content);
+      if (parsed == null) {
+        showToast('解析该目录下最新的数据文件失败');
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(sourceKey, content);
+      await prefs.setString(workKey, jsonEncode(parsed));
+      await prefs.setString('hw-flutter-app.loaded-file-name', fileName);
+      setState(() {
+        taskData = parsed;
+        fileStatus = '自动导入: $fileName';
+        clearCurrentState();
+      });
+      showToast('已成功从默认路径自动导入最新文件：$fileName');
+    } catch (e) {
+      showToast('从默认路径导入失败: $e');
+    }
+  }
+
+  Future<String?> saveToLocalDisk(Map<String, dynamic> data) async {
+    try {
+      final savePath = _savePath ?? 'data/Document/hw/result';
+      final dir = Directory(savePath);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      String loadedName = prefs.getString('hw-flutter-app.loaded-file-name') ?? '';
+      if (loadedName.isEmpty) {
+        final inventory = data['inventory'];
+        String taskNum = '';
+        if (inventory is Map) {
+          taskNum = (inventory['taskNum'] ?? '').toString().trim();
+        }
+        if (taskNum.isNotEmpty && taskNum != 'null') {
+          loadedName = '$taskNum.json';
+        } else {
+          loadedName = 'task.json';
+        }
+      }
+
+      final dotIndex = loadedName.lastIndexOf('.');
+      final baseName = dotIndex != -1 ? loadedName.substring(0, dotIndex) : loadedName;
+      final saveFileName = '${baseName}_result.json';
+
+      String fullPath = '';
+      if (savePath.endsWith('/') || savePath.endsWith('\\')) {
+        fullPath = '$savePath$saveFileName';
+      } else {
+        final separator = savePath.contains('\\') ? '\\' : '/';
+        fullPath = '$savePath$separator$saveFileName';
+      }
+
+      final file = File(fullPath);
+      await file.writeAsString(jsonEncode(data), flush: true);
+      return saveFileName;
+    } catch (e) {
+      debugPrint('同步写入本地文件失败: $e');
+      return null;
+    }
   }
 
   void loadInventoryContent(String content, String status) {
@@ -231,6 +369,10 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
       showToast('读取导入文件失败');
       return;
     }
+    final fileName = result.files.single.name;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('hw-flutter-app.loaded-file-name', fileName);
+    
     importSelectedContent(utf8.decode(bytes));
   }
 
@@ -332,6 +474,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(sourceKey);
     await prefs.remove(workKey);
+    await prefs.remove('hw-flutter-app.loaded-file-name');
     setState(() {
       taskData = null;
       fileStatus = '等待导入';
@@ -699,12 +842,17 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
 
   Future<void> saveTaskData(Map<String, dynamic> data, String message) async {
     await writeWorkFile(data);
+    final savedFileName = await saveToLocalDisk(data);
     setState(() {
       taskData = data;
       fileStatus = '已更新工作文件';
       clearCurrentState();
     });
-    showToast(message);
+    if (savedFileName != null) {
+      showToast('$message，已同步保存为 $savedFileName');
+    } else {
+      showToast(message);
+    }
   }
 
   Future<void> confirmMarkAllUncheckedLoss() async {
@@ -889,6 +1037,110 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
     );
   }
 
+  Future<void> showSettingsDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    final readController = TextEditingController(
+      text: prefs.getString('hw-flutter-app.settings.read-path') ?? 'data/Document/hw/original',
+    );
+    final saveController = TextEditingController(
+      text: prefs.getString('hw-flutter-app.settings.save-path') ?? 'data/Document/hw/result',
+    );
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.settings, color: Color(0xff1f4e79)),
+              SizedBox(width: 8),
+              Text('系统参数设置', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '默认读取文件路径 (JSON / TXT 目录)',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff475569)),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: readController,
+                  decoration: InputDecoration(
+                    hintText: '请输入本地文件夹路径',
+                    filled: true,
+                    fillColor: const Color(0xfff8fafc),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  '系统初始时从此路径自动加载最新文件',
+                  style: TextStyle(fontSize: 11, color: Color(0xff64748b)),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '默认保存文件路径 (输出目录)',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff475569)),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: saveController,
+                  decoration: InputDecoration(
+                    hintText: '请输入本地保存文件夹路径',
+                    filled: true,
+                    fillColor: const Color(0xfff8fafc),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  '进行盘库修改盘存状态时，将结果文件同步输出至此路径',
+                  style: TextStyle(fontSize: 11, color: Color(0xff64748b)),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消', style: TextStyle(color: Color(0xff64748b))),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xff1f4e79),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                final navigator = Navigator.of(context);
+                final rPath = readController.text.trim();
+                final sPath = saveController.text.trim();
+                if (rPath.isEmpty || sPath.isEmpty) {
+                  showToast('路径不能为空');
+                  return;
+                }
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('hw-flutter-app.settings.read-path', rPath);
+                await prefs.setString('hw-flutter-app.settings.save-path', sPath);
+                await loadSettings();
+                navigator.pop();
+                showToast('设置永久保存成功');
+              },
+              child: const Text('保存', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget buildHeader() {
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
@@ -914,6 +1166,11 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
+            IconButton(
+              icon: const Icon(Icons.settings, color: Color(0xff1f4e79)),
+              tooltip: '系统设置',
+              onPressed: showSettingsDialog,
+            ),
             Chip(
               avatar: const Icon(
                 Icons.circle,
@@ -1069,14 +1326,35 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 10),
-          const Text(
-            '请选择 PC 端导出的 JSON 任务单。应用会保留原始备份，并生成可持续更新的本机工作文件。',
-            style: TextStyle(color: Color(0xff64748b), height: 1.5),
+          Text(
+            '应用支持从本机默认路径自动读取数据文件，若没有检测到，可在“设置”中配置或手动选择 JSON 导入。\n\n当前读取路径：${_readPath ?? 'data/Document/hw/original'}',
+            style: const TextStyle(color: Color(0xff64748b), height: 1.5),
           ),
           const SizedBox(height: 16),
-          FilledButton(
-            onPressed: chooseInventoryFile,
-            child: const Text('导入 JSON 文件'),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xff1f4e79),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: autoLoadFromDefaultPath,
+                icon: const Icon(Icons.refresh),
+                label: const Text('从默认路径导入'),
+              ),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xff1f4e79),
+                  side: const BorderSide(color: Color(0xff1f4e79)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: chooseInventoryFile,
+                icon: const Icon(Icons.file_open),
+                label: const Text('手动选择 JSON 文件'),
+              ),
+            ],
           ),
         ],
       ),

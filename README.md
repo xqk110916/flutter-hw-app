@@ -16,8 +16,70 @@
 | 图标 | [cupertino_icons](https://pub.dev/packages/cupertino_icons) | `^1.0.8` |
 | 应用图标生成 | [flutter_launcher_icons](https://pub.dev/packages/flutter_launcher_icons) | `^0.13.1` (dev) |
 | 代码规范 | [flutter_lints](https://pub.dev/packages/flutter_lints) | `^6.0.0` (dev) |
+| AST 分析 | [analyzer](https://pub.dev/packages/analyzer) | `^10.0.1` (dev) |
+| 路径处理 | [path](https://pub.dev/packages/path) | `^1.9.1` (dev) |
 
 > 无第三方状态管理库（无 Bloc/Riverpod/Provider），无网络请求库（无 Dio），无路由框架（无 GoRouter）。采用原生 `setState` + `SharedPreferences` 的轻量方案。
+
+### 状态管理与路由架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      MaterialApp                            │
+│  theme: Material3 (seedColor: #1f4e79)                      │
+│  home: InventoryHomePage                                    │
+├─────────────────────────────────────────────────────────────┤
+│  路由方式: Navigator 1.0 (无命名路由表)                       │
+│  InventoryHomePage ←→ ScannerPage (MaterialPageRoute)       │
+├─────────────────────────────────────────────────────────────┤
+│  状态管理: setState() (原生)                                 │
+│                                                             │
+│  StatefulWidget                                              │
+│  └── State._InventoryHomePageState                          │
+│      ├── 15 个可变状态字段 (taskData, currentContainer...)  │
+│      ├── 17 个计算属性 getter (warehouses, hasData...)      │
+│      └── 47 个实例方法 (业务逻辑 + UI 构建)                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Widget 继承关系**（基于 AST 提取）：
+
+```
+StatelessWidget
+└── InventoryApp                    # 应用根，配置主题与入口
+
+StatefulWidget
+├── InventoryHomePage               # 主页面，createState → _InventoryHomePageState
+└── ScannerPage                     # 扫码页面，createState → _ScannerPageState
+
+State
+├── _InventoryHomePageState         # 核心状态：数据管理 + 扫码查询 + 结果录入 + UI
+└── _ScannerPageState               # 扫码状态：handled 标记防重复
+```
+
+### 核心模块依赖字典
+
+基于 `project_graph.json` 提取的高频引用模块：
+
+| 模块 | 类型 | 被引用次数 | 职责边界 |
+|------|------|-----------|----------|
+| `_InventoryHomePageState` | State | 全局核心 | 唯一的状态容器，持有全部业务数据和 UI 构建逻辑 |
+| `SharedPreferences` | 外部依赖 | 5 个 SP 键 | 持久化存储层：原始备份、工作文件、文件名、路径配置 |
+| `FilePicker` | 外部依赖 | 1 处 | 文件系统交互：选择 JSON/TXT 导入文件 |
+| `MobileScanner` | 外部依赖 | 1 处 | 摄像头硬件交互：二维码扫描 |
+| `TextEditingController` | Flutter | 2 个实例 | 输入控制：scanController（扫码框）、remarkController（备注框） |
+
+**顶层工具函数**（纯函数，无副作用）：
+
+| 函数 | 签名 | 职责 |
+|------|------|------|
+| `getWarehouseList` | `(Map<String,dynamic>?) → List<Map<String,dynamic>>` | 从任务单提取库房列表 |
+| `getGoodsList` | `(Map<String,dynamic>) → List<Map<String,dynamic>>` | 从库房提取容器列表 |
+| `findContainerInData` | `(Map, String) → Map?` | 按容器号全局检索 |
+| `stringField` | `(Map, String) → String` | 安全提取字符串字段 |
+| `isContainerChecked` | `(Map) → bool` | 判断容器是否已盘存 |
+| `resultLabel` | `(int) → String` | 结果码转中文标签 |
+| `formatDateTime` | `(DateTime) → String` | 日期格式化为 `yyyy-MM-dd HH:mm:ss` |
 
 ## Android 构建配置
 
@@ -30,27 +92,9 @@
 | targetSdk | Flutter 默认（当前 `35`） |
 | Java 兼容 | `Java 17` |
 | Kotlin JVM Target | `17` |
-| Release 签名 | `android/app/hw-release.jks`（RSA 2048，有效期 30 年） |
+| Release 签名 | 使用 debug 签名（最终安装时由内部签名流程覆盖） |
 
 > **注意**: `applicationId` 当前为 `com.example.hw_app`，发布前需替换为正式包名。
-
-### Release 签名配置
-
-| 文件 | 路径 | 说明 |
-|------|------|------|
-| 密钥库 | `android/app/hw-release.jks` | 已提交到仓库 |
-| 签名配置 | `android/app/key.properties` | 已加入 `.gitignore`，需本地维护 |
-
-`key.properties` 格式：
-
-```properties
-storePassword=你的密钥库密码
-keyPassword=你的密钥密码
-keyAlias=hw-release
-storeFile=hw-release.jks
-```
-
-首次构建前需在 `android/app/` 下创建 `key.properties` 并填入正确的密码。`build.gradle.kts` 会自动读取该文件配置 Release 签名。
 
 ## 环境与运行指南
 

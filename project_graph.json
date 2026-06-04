@@ -1,0 +1,1328 @@
+{
+  "projectRoot": "F:\\testCode\\hw-uni-app\\hw-app-new",
+  "generatedAt": "2026-06-04T11:01:24.675636",
+  "files": [
+    {
+      "filePath": "lib/main.dart",
+      "imports": [
+        {
+          "uri": "dart:convert",
+          "isRelative": false,
+          "prefix": ""
+        },
+        {
+          "uri": "dart:io",
+          "isRelative": false,
+          "prefix": ""
+        },
+        {
+          "uri": "package:file_picker/file_picker.dart",
+          "isRelative": false,
+          "prefix": ""
+        },
+        {
+          "uri": "package:flutter/material.dart",
+          "isRelative": false,
+          "prefix": ""
+        },
+        {
+          "uri": "package:flutter/services.dart",
+          "isRelative": false,
+          "prefix": ""
+        },
+        {
+          "uri": "package:mobile_scanner/mobile_scanner.dart",
+          "isRelative": false,
+          "prefix": ""
+        },
+        {
+          "uri": "package:shared_preferences/shared_preferences.dart",
+          "isRelative": false,
+          "prefix": ""
+        }
+      ],
+      "exports": [],
+      "classes": [
+        {
+          "name": "InventoryApp",
+          "isAbstract": false,
+          "extends": "StatelessWidget",
+          "with": [],
+          "implements": [],
+          "fields": [],
+          "methods": [
+            {
+              "name": "InventoryApp",
+              "returnType": "InventoryApp",
+              "isConstructor": true,
+              "parameters": [
+                {
+                  "name": "",
+                  "type": "dynamic"
+                }
+              ]
+            },
+            {
+              "name": "build",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "context",
+                  "type": "BuildContext"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "InventoryHomePage",
+          "isAbstract": false,
+          "extends": "StatefulWidget",
+          "with": [],
+          "implements": [],
+          "fields": [],
+          "methods": [
+            {
+              "name": "InventoryHomePage",
+              "returnType": "InventoryHomePage",
+              "isConstructor": true,
+              "parameters": [
+                {
+                  "name": "",
+                  "type": "dynamic"
+                }
+              ]
+            },
+            {
+              "name": "createState",
+              "returnType": "State<InventoryHomePage>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            }
+          ]
+        },
+        {
+          "name": "_InventoryHomePageState",
+          "isAbstract": false,
+          "extends": "State",
+          "with": [],
+          "implements": [],
+          "fields": [
+            {
+              "name": "taskData",
+              "type": "Map<String, dynamic>?",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "currentContainer",
+              "type": "Map<String, dynamic>?",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "matchedContainer",
+              "type": "Map<String, dynamic>?",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "actualDisplayFields",
+              "type": "List<Map<String, dynamic>>",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "compareIssues",
+              "type": "List<Map<String, String>>",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "fileStatus",
+              "type": "String",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "scanText",
+              "type": "String",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "scanNotice",
+              "type": "String",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "remark",
+              "type": "String",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "activeListType",
+              "type": "String",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "selectedWarehouseFilterIndex",
+              "type": "int",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "selectedResult",
+              "type": "int?",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "currentShowsActual",
+              "type": "bool",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "lastBackPressedAt",
+              "type": "DateTime?",
+              "isStatic": false,
+              "isFinal": false
+            },
+            {
+              "name": "scanController",
+              "type": "dynamic",
+              "isStatic": false,
+              "isFinal": true
+            },
+            {
+              "name": "remarkController",
+              "type": "dynamic",
+              "isStatic": false,
+              "isFinal": true
+            },
+            {
+              "name": "quickRemarks",
+              "type": "dynamic",
+              "isStatic": false,
+              "isFinal": true
+            }
+          ],
+          "methods": [
+            {
+              "name": "initState",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "dispose",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "warehouses",
+              "returnType": "List<Map<String, dynamic>>",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "hasData",
+              "returnType": "bool",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "warehouseCount",
+              "returnType": "int",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "totalCount",
+              "returnType": "int",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "checkedCount",
+              "returnType": "int",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "uncheckedCount",
+              "returnType": "int",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "abnormalCount",
+              "returnType": "int",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "taskNumText",
+              "returnType": "String",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "activeListTitle",
+              "returnType": "String",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "warehouseFilterOptions",
+              "returnType": "List<String>",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "currentWarehouseFilterLabel",
+              "returnType": "String",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "visibleWarehouseGroups",
+              "returnType": "List<Map<String, dynamic>>",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "visibleCount",
+              "returnType": "int",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "currentResultLabel",
+              "returnType": "String",
+              "isStatic": false,
+              "isGetter": true,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "loadSettings",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "loadDefaultFiles",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "autoLoadFromDefaultPath",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "saveToLocalDisk",
+              "returnType": "Future<String?>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": "Map<String, dynamic>"
+                }
+              ]
+            },
+            {
+              "name": "loadInventoryContent",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "content",
+                  "type": "String"
+                },
+                {
+                  "name": "status",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "chooseInventoryFile",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "importSelectedContent",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "content",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "parseInventoryContent",
+              "returnType": "Map<String, dynamic>?",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "content",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "normalizeOldArray",
+              "returnType": "Map<String, dynamic>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "list",
+                  "type": "List<Map<String, dynamic>>"
+                }
+              ]
+            },
+            {
+              "name": "writeWorkFile",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": "Map<String, dynamic>"
+                }
+              ]
+            },
+            {
+              "name": "confirmClearFiles",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "confirmReimport",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "searchByInput",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "searchContainer",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "rawCode",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "parseQrActual",
+              "returnType": "Map<String, dynamic>?",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "rawCode",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "findContainerInData",
+              "returnType": "Map<String, dynamic>?",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": "Map<String, dynamic>"
+                },
+                {
+                  "name": "code",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "setCurrentFromMatch",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "actual",
+                  "type": "Map<String, dynamic>?"
+                },
+                {
+                  "name": "found",
+                  "type": "Map<String, dynamic>"
+                }
+              ]
+            },
+            {
+              "name": "buildCompareIssues",
+              "returnType": "List<Map<String, String>>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "actual",
+                  "type": "Map<String, dynamic>"
+                },
+                {
+                  "name": "listItem",
+                  "type": "Map<String, dynamic>"
+                },
+                {
+                  "name": "fields",
+                  "type": "List<Map<String, dynamic>>"
+                }
+              ]
+            },
+            {
+              "name": "selectContainerFromList",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": "Map<String, dynamic>"
+                }
+              ]
+            },
+            {
+              "name": "openScanner",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "selectResult",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "result",
+                  "type": "int"
+                }
+              ]
+            },
+            {
+              "name": "appendQuickRemark",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "text",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "submitInventoryResult",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "saveInventoryResult",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "saveMatchedInventoryResult",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "saveUnmatchedInventoryResult",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "chooseWarehouseIndex",
+              "returnType": "Future<int?>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "list",
+                  "type": "List<Map<String, dynamic>>"
+                }
+              ]
+            },
+            {
+              "name": "appendUnmatchedToWarehouse",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": "Map<String, dynamic>"
+                },
+                {
+                  "name": "warehouseIndex",
+                  "type": "int"
+                }
+              ]
+            },
+            {
+              "name": "findWarehouseIndexForActual",
+              "returnType": "int",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": "Map<String, dynamic>"
+                },
+                {
+                  "name": "actual",
+                  "type": "Map<String, dynamic>"
+                }
+              ]
+            },
+            {
+              "name": "applyResultFields",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": "Map<String, dynamic>"
+                }
+              ]
+            },
+            {
+              "name": "saveTaskData",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": "Map<String, dynamic>"
+                },
+                {
+                  "name": "message",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "confirmMarkAllUncheckedLoss",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "markAllUncheckedLoss",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "lossRemark",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "cloneTaskData",
+              "returnType": "Map<String, dynamic>?",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "shouldIncludeItem",
+              "returnType": "bool",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": "Map<String, dynamic>"
+                }
+              ]
+            },
+            {
+              "name": "clearCurrent",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "clearCurrentState",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "showConfirmDialog",
+              "returnType": "Future<bool>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "title",
+                  "type": "String"
+                },
+                {
+                  "name": "content",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "showTextInputDialog",
+              "returnType": "Future<String?>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "title",
+                  "type": "String"
+                },
+                {
+                  "name": "content",
+                  "type": "String"
+                },
+                {
+                  "name": "hint",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "showToast",
+              "returnType": "void",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "message",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "build",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "context",
+                  "type": "BuildContext"
+                }
+              ]
+            },
+            {
+              "name": "showSettingsDialog",
+              "returnType": "Future<void>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "buildHeader",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "buildStatsRow",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "buildEmptyPanel",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "buildWorkspace",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "wide",
+                  "type": "bool"
+                }
+              ]
+            },
+            {
+              "name": "buildControlPanel",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "buildMainPanel",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "wide",
+                  "type": "bool"
+                }
+              ]
+            },
+            {
+              "name": "buildListPanel",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "buildWarehouseGroup",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "group",
+                  "type": "Map<String, dynamic>"
+                }
+              ]
+            },
+            {
+              "name": "buildHintPanel",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "buildDetailPanel",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "buildDiffPanel",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            },
+            {
+              "name": "buildInfoGrid",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "container",
+                  "type": "Map<String, dynamic>"
+                }
+              ]
+            },
+            {
+              "name": "resultButton",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": "int"
+                },
+                {
+                  "name": "label",
+                  "type": "String"
+                }
+              ]
+            },
+            {
+              "name": "resultChip",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": "int?"
+                }
+              ]
+            },
+            {
+              "name": "panel",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "child",
+                  "type": "Widget"
+                },
+                {
+                  "name": "padding",
+                  "type": "double"
+                }
+              ]
+            },
+            {
+              "name": "infoBox",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "text",
+                  "type": "String"
+                },
+                {
+                  "name": "background",
+                  "type": "Color"
+                },
+                {
+                  "name": "foreground",
+                  "type": "Color"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "ScannerPage",
+          "isAbstract": false,
+          "extends": "StatefulWidget",
+          "with": [],
+          "implements": [],
+          "fields": [],
+          "methods": [
+            {
+              "name": "ScannerPage",
+              "returnType": "ScannerPage",
+              "isConstructor": true,
+              "parameters": [
+                {
+                  "name": "",
+                  "type": "dynamic"
+                }
+              ]
+            },
+            {
+              "name": "createState",
+              "returnType": "State<ScannerPage>",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": []
+            }
+          ]
+        },
+        {
+          "name": "_ScannerPageState",
+          "isAbstract": false,
+          "extends": "State",
+          "with": [],
+          "implements": [],
+          "fields": [
+            {
+              "name": "handled",
+              "type": "bool",
+              "isStatic": false,
+              "isFinal": false
+            }
+          ],
+          "methods": [
+            {
+              "name": "build",
+              "returnType": "Widget",
+              "isStatic": false,
+              "isGetter": false,
+              "isSetter": false,
+              "parameters": [
+                {
+                  "name": "context",
+                  "type": "BuildContext"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "topLevelFunctions": [
+        {
+          "name": "main",
+          "returnType": "void",
+          "parameters": [],
+          "isPrivate": false
+        },
+        {
+          "name": "getWarehouseList",
+          "returnType": "List<Map<String, dynamic>>",
+          "parameters": [
+            {
+              "name": "data",
+              "type": "Map<String, dynamic>?"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "getGoodsList",
+          "returnType": "List<Map<String, dynamic>>",
+          "parameters": [
+            {
+              "name": "warehouse",
+              "type": "Map<String, dynamic>"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "getMapList",
+          "returnType": "List<Map<String, dynamic>>",
+          "parameters": [
+            {
+              "name": "value",
+              "type": "dynamic"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "stringField",
+          "returnType": "String",
+          "parameters": [
+            {
+              "name": "item",
+              "type": "Map<String, dynamic>"
+            },
+            {
+              "name": "key",
+              "type": "String"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "displayValue",
+          "returnType": "String",
+          "parameters": [
+            {
+              "name": "value",
+              "type": "dynamic"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "getGroupWarehouseName",
+          "returnType": "String",
+          "parameters": [
+            {
+              "name": "group",
+              "type": "Map<String, dynamic>"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "normalizePosition",
+          "returnType": "String",
+          "parameters": [
+            {
+              "name": "item",
+              "type": "Map<String, dynamic>"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "getItemPositionText",
+          "returnType": "String",
+          "parameters": [
+            {
+              "name": "item",
+              "type": "Map<String, dynamic>"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "getItemResultValue",
+          "returnType": "int?",
+          "parameters": [
+            {
+              "name": "item",
+              "type": "Map<String, dynamic>"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "isContainerChecked",
+          "returnType": "bool",
+          "parameters": [
+            {
+              "name": "item",
+              "type": "Map<String, dynamic>"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "isContainerAbnormal",
+          "returnType": "bool",
+          "parameters": [
+            {
+              "name": "item",
+              "type": "Map<String, dynamic>"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "resultLabel",
+          "returnType": "String",
+          "parameters": [
+            {
+              "name": "result",
+              "type": "int"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "fieldLabel",
+          "returnType": "String",
+          "parameters": [
+            {
+              "name": "key",
+              "type": "String"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "isDateCompareField",
+          "returnType": "bool",
+          "parameters": [
+            {
+              "name": "key",
+              "type": "String"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "normalizeValueForCompare",
+          "returnType": "String",
+          "parameters": [
+            {
+              "name": "key",
+              "type": "String"
+            },
+            {
+              "name": "value",
+              "type": "dynamic"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "actualFieldLabel",
+          "returnType": "String",
+          "parameters": [
+            {
+              "name": "fields",
+              "type": "List<Map<String, dynamic>>"
+            },
+            {
+              "name": "key",
+              "type": "String"
+            }
+          ],
+          "isPrivate": false
+        },
+        {
+          "name": "formatDateTime",
+          "returnType": "String",
+          "parameters": [
+            {
+              "name": "date",
+              "type": "DateTime"
+            }
+          ],
+          "isPrivate": false
+        }
+      ],
+      "topLevelVariables": [
+        {
+          "name": "sourceKey",
+          "type": "dynamic",
+          "isConst": true,
+          "isFinal": false
+        },
+        {
+          "name": "workKey",
+          "type": "dynamic",
+          "isConst": true,
+          "isFinal": false
+        },
+        {
+          "name": "unassignedWarehouseName",
+          "type": "dynamic",
+          "isConst": true,
+          "isFinal": false
+        }
+      ]
+    }
+  ]
+}

@@ -321,40 +321,9 @@ flutter build web --release
 | minSdk | Flutter 默认（当前 `21`） |
 | targetSdk | Flutter 默认（当前 `35`） |
 | Java | `17` |
-| Release 签名 | `android/app/hw-release.jks`（RSA 2048，有效期 30 年） |
+| Release 签名 | 使用 debug 签名（最终安装时由内部签名流程覆盖） |
 
-> **发布前必做**：替换 `applicationId`。
-
-### 8.5 Release 签名配置
-
-项目已配置正式 Release 签名，涉及以下文件：
-
-| 文件 | 路径 | 版本控制 |
-|------|------|----------|
-| 密钥库 | `android/app/hw-release.jks` | 已提交 |
-| 签名属性 | `android/app/key.properties` | 已加入 `.gitignore`（不提交密码） |
-| 构建配置 | `android/app/build.gradle.kts` | 已提交，自动读取 key.properties |
-
-**签名参数**：
-
-| 参数 | 值 |
-|------|------|
-| keyAlias | `hw-release` |
-| 密钥算法 | RSA 2048 |
-| 有效期 | 30 年（10,950 天） |
-| 签名算法 | SHA256withRSA |
-| DN | `CN=HW, OU=HW-Dev, O=HW, L=Beijing, ST=Beijing, C=CN` |
-
-**首次构建前**：在 `android/app/` 下创建 `key.properties` 文件：
-
-```properties
-storePassword=你的密钥库密码
-keyPassword=你的密钥密码
-keyAlias=hw-release
-storeFile=hw-release.jks
-```
-
-> `build.gradle.kts` 会在构建时自动读取 `key.properties`。如果该文件不存在，Release 构建会因缺少签名配置而失败。
+> **发布前必做**：替换 `applicationId`。最终 APK 签名由内部安全流程在安装时处理，构建阶段无需额外配置。
 
 ---
 

@@ -218,7 +218,7 @@
 ```json
 [
   { "fileValue": "containerCode", "value": "RQ-001", "name": "容器号", "sortOrder": 1 },
-  { "fileValue": "goodCode", "value": "CL-001", "name": "材料编码", "sortOrder": 2 }
+  { "fileValue": "goodCode", "value": "CL-001", "name": "材料代码", "sortOrder": 2 }
 ]
 ```
 

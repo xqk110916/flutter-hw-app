@@ -1661,7 +1661,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             subtitle: Text(
-              '材料编码 ${displayValue(item['goodCode'])}\n位置 ${getItemPositionText(item)}',
+              '材料代码 ${displayValue(item['goodCode'])}\n位置 ${getItemPositionText(item)}',
             ),
             trailing: resultChip(getItemResultValue(item)),
             onTap: () => selectContainerFromList(item),
@@ -1855,7 +1855,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
     final fields = currentShowsActual
         ? actualDisplayFields
         : [
-            {'label': '材料编码', 'value': container['goodCode']},
+            {'label': '材料代码', 'value': container['goodCode']},
             {'label': '生产单位', 'value': container['productionUnit']},
             {'label': '库房', 'value': container['warehouseName']},
             {'label': '入库人', 'value': container['createUname']},
@@ -2154,7 +2154,7 @@ String resultLabel(int result) {
 String fieldLabel(String key) {
   return switch (key) {
     'containerCode' => '容器号',
-    'goodCode' => '材料编码',
+    'goodCode' => '材料代码',
     'goodName' => '材料名称',
     'productionUnit' => '生产单位',
     'warehouseName' => '库房',

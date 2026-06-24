@@ -10,6 +10,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 const sourceKey = 'hw-flutter-app.inventory-source';
 const workKey = 'hw-flutter-app.inventory-work';
 const unassignedWarehouseName = '未归属库房';
+// 默认读取目录（自动导入数据文件）
+const defaultReadPath = '/data/userdata/ZM/DR';
+// 默认保存目录（导出结果文件）
+const defaultSavePath = '/data/userdata/ZM/DC';
 
 void main() {
   runApp(const InventoryApp());
@@ -183,8 +187,8 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _readPath = prefs.getString('hw-flutter-app.settings.read-path') ?? 'data/Document/hw/original';
-      _savePath = prefs.getString('hw-flutter-app.settings.save-path') ?? 'data/Document/hw/result';
+      _readPath = prefs.getString('hw-flutter-app.settings.read-path') ?? defaultReadPath;
+      _savePath = prefs.getString('hw-flutter-app.settings.save-path') ?? defaultSavePath;
     });
   }
 
@@ -216,7 +220,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
 
     // Try auto-loading from default path
     setState(() => fileStatus = '检测默认路径');
-    final readPath = _readPath ?? 'data/Document/hw/original';
+    final readPath = _readPath ?? defaultReadPath;
     try {
       final dir = Directory(readPath);
       if (await dir.exists()) {
@@ -254,7 +258,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
   }
 
   Future<void> autoLoadFromDefaultPath() async {
-    final readPath = _readPath ?? 'data/Document/hw/original';
+    final readPath = _readPath ?? defaultReadPath;
     try {
       final dir = Directory(readPath);
       if (!await dir.exists()) {
@@ -300,46 +304,97 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
 
   Future<String?> saveToLocalDisk(Map<String, dynamic> data) async {
     try {
-      final savePath = _savePath ?? 'data/Document/hw/result';
+      final savePath = _savePath ?? defaultSavePath;
       final dir = Directory(savePath);
       if (!await dir.exists()) {
         await dir.create(recursive: true);
       }
-
-      final prefs = await SharedPreferences.getInstance();
-      String loadedName = prefs.getString('hw-flutter-app.loaded-file-name') ?? '';
-      if (loadedName.isEmpty) {
-        final inventory = data['inventory'];
-        String taskNum = '';
-        if (inventory is Map) {
-          taskNum = (inventory['taskNum'] ?? '').toString().trim();
-        }
-        if (taskNum.isNotEmpty && taskNum != 'null') {
-          loadedName = '$taskNum.json';
-        } else {
-          loadedName = 'task.json';
-        }
-      }
-
-      final dotIndex = loadedName.lastIndexOf('.');
-      final baseName = dotIndex != -1 ? loadedName.substring(0, dotIndex) : loadedName;
-      final saveFileName = '${baseName}_result.json';
-
-      String fullPath = '';
-      if (savePath.endsWith('/') || savePath.endsWith('\\')) {
-        fullPath = '$savePath$saveFileName';
-      } else {
-        final separator = savePath.contains('\\') ? '\\' : '/';
-        fullPath = '$savePath$separator$saveFileName';
-      }
-
-      final file = File(fullPath);
-      await file.writeAsString(jsonEncode(data), flush: true);
+      final saveFileName = await resolveResultFileName(data);
+      final fullPath = joinPath(savePath, saveFileName);
+      await File(fullPath).writeAsString(jsonEncode(data), flush: true);
       return saveFileName;
     } catch (e) {
       debugPrint('同步写入本地文件失败: $e');
       return null;
     }
+  }
+
+  /// 推导结果文件名：{原始文件名或任务单号}_result.json
+  Future<String> resolveResultFileName(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+    String loadedName = prefs.getString('hw-flutter-app.loaded-file-name') ?? '';
+    if (loadedName.isEmpty) {
+      final inventory = data['inventory'];
+      String taskNum = '';
+      if (inventory is Map) {
+        taskNum = (inventory['taskNum'] ?? '').toString().trim();
+      }
+      loadedName = (taskNum.isNotEmpty && taskNum != 'null') ? '$taskNum.json' : 'task.json';
+    }
+    final dotIndex = loadedName.lastIndexOf('.');
+    final baseName = dotIndex != -1 ? loadedName.substring(0, dotIndex) : loadedName;
+    return '${baseName}_result.json';
+  }
+
+  /// 拼接目录与文件名（兼容 / 与 \）
+  String joinPath(String dir, String fileName) {
+    if (dir.endsWith('/') || dir.endsWith('\\')) return '$dir$fileName';
+    final separator = dir.contains('\\') ? '\\' : '/';
+    return '$dir$separator$fileName';
+  }
+
+  /// 保存到本地磁盘：先尝试配置的保存路径，不可用则提示并让用户手动选择位置。
+  /// 返回最终保存标识（文件名或完整路径），用于提示；用户全程取消返回 null。
+  Future<String?> persistToLocalDisk(Map<String, dynamic> data) async {
+    final fileName = await saveToLocalDisk(data);
+    if (fileName != null) return fileName;
+
+    final savePath = _savePath ?? defaultSavePath;
+    if (!await confirmManualSave(savePath)) return null;
+    return saveToManualLocation(data);
+  }
+
+  /// 让用户选择保存目录，在该目录下写入结果文件。
+  /// Android 无系统级"另存为"对话框（saveFile 会返回 null），故采用选目录方式。
+  /// 返回写入的完整路径；用户取消或写入失败返回 null。
+  Future<String?> saveToManualLocation(Map<String, dynamic> data) async {
+    final saveFileName = await resolveResultFileName(data);
+    final dirPath = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: '选择保存目录',
+    );
+    if (dirPath == null || dirPath.isEmpty) return null;
+    final fullPath = joinPath(dirPath, saveFileName);
+    try {
+      await File(fullPath).writeAsString(jsonEncode(data), flush: true);
+      return fullPath;
+    } catch (e) {
+      debugPrint('手动保存写入失败: $e');
+      showToast('写入所选目录失败: $e');
+      return null;
+    }
+  }
+
+  /// 保存路径不可用时，确认是否手动选择保存位置。
+  Future<bool> confirmManualSave(String unavailablePath) async {
+    if (!mounted) return false;
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('保存路径不可用'),
+            content: Text('配置的保存路径无法创建或写入：\n$unavailablePath\n\n是否手动选择保存位置？'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('手动选择'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   void loadInventoryContent(String content, String status) {
@@ -532,15 +587,18 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
         currentContainer = actual;
         matchedContainer = null;
         currentShowsActual = true;
-        actualDisplayFields = getMapList(actual['__displayFields']);
+        actualDisplayFields = ensureLocationField(
+          getMapList(actual['__displayFields']),
+          null,
+        );
         compareIssues = [];
-        selectedResult = 2;
+        selectedResult = 1;
         remark = '不在列表中';
         remarkController.text = remark;
         scanController.text = actualCode;
         scanNotice = '该容器不在本次盘存列表中';
       });
-      showToast('扫码成功：容器 $actualCode 不在盘存列表中（已设为盘盈）');
+      showToast('扫码成功：容器 $actualCode 不在盘存列表中（已设为不正常）');
       return;
     }
     setCurrentFromMatch(actual, found);
@@ -609,7 +667,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
     final item = Map<String, dynamic>.from(found['item'] as Map);
     final fields = actual == null
         ? <Map<String, dynamic>>[]
-        : getMapList(actual['__displayFields']);
+        : ensureLocationField(getMapList(actual['__displayFields']), item);
     final issues = actual == null
         ? <Map<String, String>>[]
         : buildCompareIssues(actual, item, fields);
@@ -780,7 +838,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const ListTile(title: Text('选择盘盈容器归属库房')),
+              const ListTile(title: Text('选择容器归属库房')),
               for (var i = 0; i < list.length; i++)
                 ListTile(
                   title: Text(getGroupWarehouseName(list[i])),
@@ -808,7 +866,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
     goods.add(item);
     warehouse['goodsList'] = goods;
     data['warehouseList'] = list;
-    await saveTaskData(data, '盘盈容器已追加');
+    await saveTaskData(data, '容器已追加');
   }
 
   int findWarehouseIndexForActual(
@@ -855,44 +913,174 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
     }
   }
 
-  Future<void> confirmMarkAllUncheckedLoss() async {
-    if (uncheckedCount == 0) {
-      showToast('暂无未盘存记录');
+  // 保存盘存入口：校验是否全部盘存，未完成则提示但允许强制保存，随后进入盘盈盘亏汇总弹窗。
+  Future<void> confirmSaveInventory() async {
+    if (taskData == null) {
+      showToast('请先导入任务单');
       return;
     }
-    final value = await showTextInputDialog(
-      title: '一键设为盘亏',
-      content: '将当前所有未盘存容器设为盘亏，请输入备注。',
-      hint: '请输入盘亏备注',
-    );
-    if (value == null) return;
-    if (value.trim().isEmpty) {
-      showToast('请输入备注');
-      return;
+    final isComplete = uncheckedCount == 0;
+    if (!isComplete) {
+      final force = await showConfirmDialog(
+        title: '存在未盘存容器',
+        content: '当前还有 $uncheckedCount 个容器未盘存，是否强制保存？',
+      );
+      if (!force) return;
     }
-    await markAllUncheckedLoss(value.trim());
+    await openInventorySummaryDialog(isComplete);
   }
 
-  Future<void> markAllUncheckedLoss(String lossRemark) async {
+  // 构建按库房维度的盘盈盘亏录入数据，并弹出汇总弹窗。
+  Future<void> openInventorySummaryDialog(bool isComplete) async {
     final data = cloneTaskData();
     if (data == null) {
       showToast('任务单数据已失效');
       return;
     }
-    final oldRemark = remarkController.text;
-    final oldResult = selectedResult;
-    remarkController.text = lossRemark;
-    selectedResult = 1;
-    for (final warehouse in getWarehouseList(data)) {
-      for (final item in getGoodsList(warehouse)) {
-        if (!isContainerChecked(item)) {
-          applyResultFields(item);
+    final warehouseList = getWarehouseList(data);
+    final inputs = <Map<String, dynamic>>[];
+    var totalNormal = 0;
+    var totalAbnormal = 0;
+    var totalUnchecked = 0;
+    for (var i = 0; i < warehouseList.length; i++) {
+      final goods = getGoodsList(warehouseList[i]);
+      var normal = 0, abnormal = 0, unchecked = 0;
+      for (final item in goods) {
+        final result = getItemResultValue(item);
+        if (result == 0) {
+          normal++;
+        } else if (result == 1) {
+          abnormal++;
+        } else {
+          unchecked++;
         }
       }
+      totalNormal += normal;
+      totalAbnormal += abnormal;
+      totalUnchecked += unchecked;
+      if (goods.isEmpty) continue;
+      inputs.add({
+        'warehouseIndex': i,
+        'warehouseName': getGroupWarehouseName(warehouseList[i]),
+        'normalCount': normal,
+        'abnormalCount': abnormal,
+        'uncheckedCount': unchecked,
+      });
     }
-    remarkController.text = oldRemark;
-    selectedResult = oldResult;
-    await saveTaskData(data, '未盘存记录已设为盘亏');
+
+    if (inputs.isEmpty) {
+      showToast('当前无可盘存的库房数据');
+      return;
+    }
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => InventorySummaryDialog(
+        inputs: inputs,
+        totalAbnormal: totalAbnormal,
+        totalUnchecked: totalUnchecked,
+        totalChecked: totalNormal + totalAbnormal,
+        isComplete: isComplete,
+      ),
+    );
+    if (result == null) return;
+    await persistInventorySummary(data, result, isComplete);
+  }
+
+  // 写入库房级 5 个计数字段与任务级汇总，并重新导出结果文件。
+  Future<void> persistInventorySummary(
+    Map<String, dynamic> data,
+    Map<String, dynamic> summary,
+    bool isComplete,
+  ) async {
+    final entries = (summary['entries'] as List)
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+    final warehouseList = getWarehouseList(data);
+
+    // 获取人员信息（全局设置，写入每个库房）
+    final inventoryUser = summary['inventoryUser'] ?? '';
+    final sealChecker = summary['sealChecker'] ?? '';
+    final responsibleUser = summary['responsibleUser'] ?? '';
+    final supervisor = summary['supervisor'] ?? '';
+
+    // 写入库房级数据
+    for (final entry in entries) {
+      final index = entry['warehouseIndex'] as int;
+      final warehouse = warehouseList[index];
+      warehouse['normalCount'] = entry['normalCount'];
+      warehouse['abnormalCount'] = entry['abnormalCount'];
+      warehouse['uncheckedCount'] = entry['uncheckedCount'];
+      warehouse['excessCount'] = entry['excessCount'];
+      warehouse['deficitCount'] = entry['deficitCount'];
+      warehouse['excessRemark'] = entry['excessRemark'] ?? '';
+      warehouse['deficitRemark'] = entry['deficitRemark'] ?? '';
+      // 写入人员信息到每个库房
+      warehouse['inventoryUser'] = inventoryUser;
+      warehouse['sealChecker'] = sealChecker;
+      warehouse['responsibleUser'] = responsibleUser;
+      warehouse['supervisor'] = supervisor;
+    }
+
+    // 空库房计数字段和人员信息统一补默认值，保持结构一致。
+    for (final warehouse in warehouseList) {
+      if (getGoodsList(warehouse).isEmpty) {
+        warehouse['normalCount'] = 0;
+        warehouse['abnormalCount'] = 0;
+        warehouse['uncheckedCount'] = 0;
+        warehouse['excessCount'] = 0;
+        warehouse['deficitCount'] = 0;
+        warehouse['excessRemark'] = '';
+        warehouse['deficitRemark'] = '';
+        warehouse['inventoryUser'] = inventoryUser;
+        warehouse['sealChecker'] = sealChecker;
+        warehouse['responsibleUser'] = responsibleUser;
+        warehouse['supervisor'] = supervisor;
+      }
+    }
+
+    var sumTotal = 0;
+    var sumUnchecked = 0;
+    var sumNormal = 0;
+    var sumAbnormal = 0;
+    var sumExcess = 0;
+    var sumDeficit = 0;
+    for (final warehouse in warehouseList) {
+      sumTotal += getGoodsList(warehouse).length;
+      sumNormal += (warehouse['normalCount'] as num?)?.toInt() ?? 0;
+      sumAbnormal += (warehouse['abnormalCount'] as num?)?.toInt() ?? 0;
+      sumUnchecked += (warehouse['uncheckedCount'] as num?)?.toInt() ?? 0;
+      sumExcess += (warehouse['excessCount'] as num?)?.toInt() ?? 0;
+      sumDeficit += (warehouse['deficitCount'] as num?)?.toInt() ?? 0;
+    }
+
+    final inventory = data['inventory'] is Map
+        ? Map<String, dynamic>.from(data['inventory'] as Map)
+        : <String, dynamic>{};
+    inventory['totalCount'] = sumTotal;
+    inventory['checkedCount'] = sumTotal - sumUnchecked;
+    inventory['uncheckedCount'] = sumUnchecked;
+    inventory['normalCount'] = sumNormal;
+    inventory['abnormalCount'] = sumAbnormal;
+    inventory['excessCount'] = sumExcess;
+    inventory['deficitCount'] = sumDeficit;
+    inventory['inventoryComplete'] = isComplete;
+    inventory['inventorySaveTime'] = formatDateTime(DateTime.now());
+
+    data['inventory'] = inventory;
+    data['warehouseList'] = warehouseList;
+
+    await writeWorkFile(data);
+    final savedTo = await persistToLocalDisk(data);
+    setState(() {
+      taskData = data;
+      fileStatus = '盘存已保存';
+    });
+    if (savedTo != null) {
+      showToast('盘存已保存，已同步保存为 $savedTo');
+    } else {
+      showToast('盘存已保存（未导出到本地磁盘）');
+    }
   }
 
   Map<String, dynamic>? cloneTaskData() {
@@ -954,42 +1142,6 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
     return result == true;
   }
 
-  Future<String?> showTextInputDialog({
-    required String title,
-    required String content,
-    required String hint,
-  }) {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(content),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              decoration: InputDecoration(hintText: hint),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('确认'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void showToast(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -1040,10 +1192,10 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
   Future<void> showSettingsDialog() async {
     final prefs = await SharedPreferences.getInstance();
     final readController = TextEditingController(
-      text: prefs.getString('hw-flutter-app.settings.read-path') ?? 'data/Document/hw/original',
+      text: prefs.getString('hw-flutter-app.settings.read-path') ?? defaultReadPath,
     );
     final saveController = TextEditingController(
-      text: prefs.getString('hw-flutter-app.settings.save-path') ?? 'data/Document/hw/result',
+      text: prefs.getString('hw-flutter-app.settings.save-path') ?? defaultSavePath,
     );
 
     if (!mounted) return;
@@ -1327,7 +1479,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
           ),
           const SizedBox(height: 10),
           Text(
-            '应用支持从本机默认路径自动读取数据文件，若没有检测到，可在“设置”中配置或手动选择 JSON 导入。\n\n当前读取路径：${_readPath ?? 'data/Document/hw/original'}',
+            '应用支持从本机默认路径自动读取数据文件，若没有检测到，可在“设置”中配置或手动选择 JSON 导入。\n\n当前读取路径：${_readPath ?? defaultReadPath}',
             style: const TextStyle(color: Color(0xff64748b), height: 1.5),
           ),
           const SizedBox(height: 16),
@@ -1518,6 +1670,26 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
             ],
           ),
         ),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: confirmSaveInventory,
+            icon: const Icon(Icons.save_outlined, size: 18),
+            label: const Text(
+              '保存盘存',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xff1f4e79),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1576,11 +1748,6 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
               Wrap(
                 spacing: 8,
                 children: [
-                  if (activeListType == 'unchecked' && visibleCount > 0)
-                    FilledButton.tonal(
-                      onPressed: confirmMarkAllUncheckedLoss,
-                      child: const Text('一键盘亏'),
-                    ),
                   OutlinedButton(
                     onPressed: () => setState(() {
                       activeListType = '';
@@ -1752,9 +1919,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
             children: [
               resultButton(0, '正常'),
               const SizedBox(width: 8),
-              resultButton(2, '盘盈'),
-              const SizedBox(width: 8),
-              resultButton(1, '盘亏'),
+              resultButton(1, '不正常'),
             ],
           ),
           const SizedBox(height: 10),
@@ -1936,7 +2101,6 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
     final active = selectedResult == value;
     final color = switch (value) {
       0 => const Color(0xff10b981),
-      2 => const Color(0xff3b82f6),
       1 => const Color(0xffef4444),
       _ => const Color(0xff64748b),
     };
@@ -1973,13 +2137,11 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
     final color = switch (value) {
       0 => const Color(0xff166534),
       1 => const Color(0xff991b1b),
-      2 => const Color(0xff075985),
       _ => const Color(0xff475569),
     };
     final background = switch (value) {
       0 => const Color(0xffdcfce7),
       1 => const Color(0xfffee2e2),
-      2 => const Color(0xffe0f2fe),
       _ => const Color(0xffeef2f7),
     };
     return Chip(
@@ -2058,6 +2220,540 @@ class _ScannerPageState extends State<ScannerPage> {
   }
 }
 
+class InventorySummaryDialog extends StatefulWidget {
+  const InventorySummaryDialog({
+    super.key,
+    required this.inputs,
+    required this.totalAbnormal,
+    required this.totalUnchecked,
+    required this.totalChecked,
+    required this.isComplete,
+  });
+
+  final List<Map<String, dynamic>> inputs;
+  final int totalAbnormal;
+  final int totalUnchecked;
+  final int totalChecked;
+  final bool isComplete;
+
+  @override
+  State<InventorySummaryDialog> createState() => _InventorySummaryDialogState();
+}
+
+class _InventorySummaryDialogState extends State<InventorySummaryDialog> {
+  // 库房级盘盈盘亏输入
+  late final List<TextEditingController> _excessControllers;
+  late final List<TextEditingController> _deficitControllers;
+  late final List<TextEditingController> _excessRemarkControllers;
+  late final List<TextEditingController> _deficitRemarkControllers;
+
+  // 全局人员信息输入
+  final _inventoryUserController = TextEditingController();
+  final _sealCheckerController = TextEditingController();
+  final _responsibleUserController = TextEditingController();
+  final _supervisorController = TextEditingController();
+
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    _excessControllers = widget.inputs
+        .map((_) => TextEditingController())
+        .toList(growable: false);
+    _deficitControllers = widget.inputs
+        .map((_) => TextEditingController())
+        .toList(growable: false);
+    _excessRemarkControllers = widget.inputs
+        .map((_) => TextEditingController())
+        .toList(growable: false);
+    _deficitRemarkControllers = widget.inputs
+        .map((_) => TextEditingController())
+        .toList(growable: false);
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _excessControllers) {
+      controller.dispose();
+    }
+    for (final controller in _deficitControllers) {
+      controller.dispose();
+    }
+    for (final controller in _excessRemarkControllers) {
+      controller.dispose();
+    }
+    for (final controller in _deficitRemarkControllers) {
+      controller.dispose();
+    }
+    _inventoryUserController.dispose();
+    _sealCheckerController.dispose();
+    _responsibleUserController.dispose();
+    _supervisorController.dispose();
+    super.dispose();
+  }
+
+  int? _parseCount(TextEditingController controller) {
+    final text = controller.text.trim();
+    if (text.isEmpty) return null;
+    final value = int.tryParse(text);
+    if (value == null || value < 0) return null;
+    return value;
+  }
+
+  void _submit() {
+    final entries = <Map<String, dynamic>>[];
+    for (var i = 0; i < widget.inputs.length; i++) {
+      final input = widget.inputs[i];
+      final excess = _parseCount(_excessControllers[i]);
+      final deficit = _parseCount(_deficitControllers[i]);
+      if (excess == null || deficit == null) {
+        setState(() => _errorText = '请填写所有库房的盘盈数与盘亏数（允许填 0）');
+        return;
+      }
+      final abnormal = (input['abnormalCount'] as num).toInt();
+      if (excess + deficit != abnormal) {
+        final name = input['warehouseName'];
+        setState(() => _errorText = '「$name」盘盈+盘亏($excess+$deficit)≠不正常数($abnormal)');
+        return;
+      }
+      entries.add({
+        'warehouseIndex': input['warehouseIndex'],
+        'warehouseName': input['warehouseName'],
+        'normalCount': input['normalCount'],
+        'abnormalCount': input['abnormalCount'],
+        'uncheckedCount': input['uncheckedCount'],
+        'excessCount': excess,
+        'deficitCount': deficit,
+        'excessRemark': _excessRemarkControllers[i].text.trim(),
+        'deficitRemark': _deficitRemarkControllers[i].text.trim(),
+      });
+    }
+
+    // 添加全局人员信息
+    final summary = {
+      'entries': entries,
+      'inventoryUser': _inventoryUserController.text.trim(),
+      'sealChecker': _sealCheckerController.text.trim(),
+      'responsibleUser': _responsibleUserController.text.trim(),
+      'supervisor': _supervisorController.text.trim(),
+    };
+
+    Navigator.of(context).pop(summary);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 标题栏
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Color(0xff1f4e79),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.assignment_turned_in, color: Colors.white, size: 22),
+                  const SizedBox(width: 10),
+                  const Text(
+                    '盘存结果汇总',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            // 内容区域
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 汇总统计
+                    _buildSummaryStats(),
+                    const SizedBox(height: 16),
+                    // 人员信息填写
+                    _buildPersonnelSection(),
+                    const SizedBox(height: 16),
+                    // 库房盘点明细
+                    _buildWarehouseSection(),
+                    if (_errorText != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xfffef2f2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xfffecdd3)),
+                        ),
+                        child: Text(
+                          _errorText!,
+                          style: const TextStyle(color: Color(0xff991b1b), fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            // 底部按钮
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              decoration: BoxDecoration(
+                color: const Color(0xfff8fafc),
+                border: Border(top: BorderSide(color: const Color(0xffe2e8f0))),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xff64748b),
+                    ),
+                    child: const Text('取消'),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: _submit,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xff1f4e79),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: const Text('确认保存', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryStats() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xffeff6ff), Color(0xfff0f9ff)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xffbfdbfe)),
+      ),
+      child: Row(
+        children: [
+          _buildStatItem('不正常', widget.totalAbnormal, const Color(0xffdc2626)),
+          const SizedBox(width: 24),
+          _buildStatItem('未盘存', widget.totalUnchecked, const Color(0xfff59e0b)),
+          const SizedBox(width: 24),
+          _buildStatItem('已盘存', widget.totalChecked, const Color(0xff10b981)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, int count, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$count',
+          style: TextStyle(
+            color: color,
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            color: color.withOpacity(0.7),
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPersonnelSection() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xffe2e8f0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.people, color: Color(0xff1f4e79), size: 18),
+              SizedBox(width: 8),
+              Text(
+                '人员信息',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xff1e293b),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 第一行：盘存人、封记检查人
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _inventoryUserController,
+                  decoration: const InputDecoration(
+                    labelText: '盘存人',
+                    labelStyle: TextStyle(fontSize: 13),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Color(0xfff8fafc),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _sealCheckerController,
+                  decoration: const InputDecoration(
+                    labelText: '封记检查人',
+                    labelStyle: TextStyle(fontSize: 13),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Color(0xfff8fafc),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // 第二行：负责人、监盘人
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _responsibleUserController,
+                  decoration: const InputDecoration(
+                    labelText: '负责人',
+                    labelStyle: TextStyle(fontSize: 13),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Color(0xfff8fafc),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _supervisorController,
+                  decoration: const InputDecoration(
+                    labelText: '监盘人',
+                    labelStyle: TextStyle(fontSize: 13),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Color(0xfff8fafc),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWarehouseSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.warehouse, color: Color(0xff1f4e79), size: 18),
+            SizedBox(width: 8),
+            Text(
+              '库房盘点明细',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Color(0xff1e293b),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        for (var i = 0; i < widget.inputs.length; i++)
+          _buildWarehouseCard(i),
+      ],
+    );
+  }
+
+  Widget _buildWarehouseCard(int i) {
+    final input = widget.inputs[i];
+    final abnormal = (input['abnormalCount'] as num).toInt();
+    final unchecked = (input['uncheckedCount'] as num).toInt();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xffe2e8f0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 库房标题
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${input['warehouseName']}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xff1e293b),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: abnormal > 0
+                      ? const Color(0xfffef2f2)
+                      : const Color(0xffecfdf5),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '不正常 $abnormal / 未盘存 $unchecked',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: abnormal > 0
+                        ? const Color(0xff991b1b)
+                        : const Color(0xff065f46),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 盘盈数输入
+          Row(
+            children: [
+              SizedBox(
+                width: 100,
+                child: TextField(
+                  controller: _excessControllers[i],
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    labelText: '盘盈数',
+                    labelStyle: const TextStyle(fontSize: 12),
+                    isDense: true,
+                    filled: true,
+                    fillColor: const Color(0xfff0fdf4),
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _excessRemarkControllers[i],
+                  decoration: const InputDecoration(
+                    labelText: '盘盈备注',
+                    labelStyle: TextStyle(fontSize: 12),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Color(0xfff8fafc),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // 盘亏数输入
+          Row(
+            children: [
+              SizedBox(
+                width: 100,
+                child: TextField(
+                  controller: _deficitControllers[i],
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    labelText: '盘亏数',
+                    labelStyle: const TextStyle(fontSize: 12),
+                    isDense: true,
+                    filled: true,
+                    fillColor: const Color(0xfffef2f2),
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _deficitRemarkControllers[i],
+                  decoration: const InputDecoration(
+                    labelText: '盘亏备注',
+                    labelStyle: TextStyle(fontSize: 12),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Color(0xfff8fafc),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 List<Map<String, dynamic>> getWarehouseList(Map<String, dynamic>? data) {
   final value = data?['warehouseList'];
   if (value is! List) return [];
@@ -2128,9 +2824,29 @@ String getItemPositionText(Map<String, dynamic> item) {
   return position.isEmpty ? '-' : position;
 }
 
+// 二维码未携带 location 时，在字段网格末尾追加"位置"行（取列表容器位置）；二维码已带则保持原样不重复。
+List<Map<String, dynamic>> ensureLocationField(
+  List<Map<String, dynamic>> fields,
+  Map<String, dynamic>? listItem,
+) {
+  if (fields.any((field) => stringField(field, 'key') == 'location')) {
+    return fields;
+  }
+  final location = listItem == null ? '' : normalizePosition(listItem);
+  return [
+    ...fields,
+    {
+      'key': 'location',
+      'label': fieldLabel('location'),
+      'value': location,
+      'sortOrder': 999,
+    },
+  ];
+}
+
 int? getItemResultValue(Map<String, dynamic> item) {
   final value = int.tryParse('${item['result'] ?? ''}');
-  if (value == 0 || value == 1 || value == 2) return value;
+  if (value == 0 || value == 1) return value;
   return null;
 }
 
@@ -2139,14 +2855,13 @@ bool isContainerChecked(Map<String, dynamic> item) =>
 
 bool isContainerAbnormal(Map<String, dynamic> item) {
   final result = getItemResultValue(item);
-  return result == 1 || result == 2;
+  return result == 1;
 }
 
 String resultLabel(int result) {
   return switch (result) {
     0 => '正常',
-    1 => '盘亏',
-    2 => '盘盈',
+    1 => '不正常',
     _ => '未盘存',
   };
 }

@@ -11,6 +11,7 @@
 .svn/
 .swiftpm/
 .spec-workflow
+mcps
 migrate_working_dir/
 
 # IntelliJ related

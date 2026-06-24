@@ -1,6 +1,6 @@
 # PAD 离线作业 — 实物盘存
 
-面向仓储管理场景的 Flutter 离线盘存应用。支持导入 JSON 任务单、扫码/手动查询容器、录入盘存结果（正常/盘盈/盘亏）、本地磁盘导出，所有数据持久化在设备本地，无需联网。
+面向仓储管理场景的 Flutter 离线盘存应用。支持导入 JSON 任务单、扫码/手动查询容器、录入盘存结果（正常/不正常）、按库房汇总盘盈盘亏并本地磁盘导出，所有数据持久化在设备本地，无需联网。
 
 > 详细业务逻辑、操作流程、数据结构说明请参阅 **[BUSINESS_GUIDE.md](BUSINESS_GUIDE.md)**。
 
@@ -155,7 +155,7 @@ hw-app-new/
 
 ### 整体模式
 
-项目采用 **单文件单体架构**（Monolithic Single-File），所有 UI 与业务逻辑集中在 `lib/main.dart`（约 1924 行）。无分层目录、无独立 Model/Service/Widget 文件。
+项目采用 **单文件单体架构**（Monolithic Single-File），所有 UI 与业务逻辑集中在 `lib/main.dart`（约 2476 行）。无分层目录、无独立 Model/Service/Widget 文件。
 
 ### 核心类结构
 
@@ -177,16 +177,21 @@ main.dart
 │           │   ├── openScanner()         # 摄像头扫码
 │           │   └── parseQrActual()       # 二维码 JSON 解析
 │           ├── 结果录入
-│           │   ├── submitInventoryResult()  # 提交入口
+│           │   ├── submitInventoryResult()  # 提交入口（逐条）
 │           │   ├── saveMatchedInventoryResult()   # 列表内容器
-│           │   └── saveUnmatchedInventoryResult() # 盘盈容器
+│           │   └── saveUnmatchedInventoryResult() # 列表外容器（标为不正常）
+│           ├── 保存汇总
+│           │   ├── confirmSaveInventory()        # 全盘校验 + 强制保存
+│           │   ├── openInventorySummaryDialog()  # 按库房构建盘盈盘亏弹窗
+│           │   └── persistInventorySummary()     # 写库房级/任务级汇总并导出
 │           └── UI 构建
 │               ├── buildHeader()         # 顶栏（标题+文件状态）
 │               ├── buildStatsRow()       # 统计卡片（已加载/已盘存/未盘存/异常）
-│               ├── buildControlPanel()   # 左侧控制面板
+│               ├── buildControlPanel()   # 左侧控制面板（含"保存盘存"按钮）
 │               ├── buildListPanel()      # 列表面板
 │               └── buildDetailPanel()    # 容器详情面板
 ├── ScannerPage                           # 摄像头扫码页面
+├── InventorySummaryDialog                # 盘盈盘亏汇总弹窗（按库房填写）
 └── 顶层工具函数
     ├── getWarehouseList() / getGoodsList()  # 数据提取
     ├── findContainerInData()                # 容器检索
@@ -226,8 +231,8 @@ main.dart
 | `hw-flutter-app.inventory-source` | 原始 JSON 备份 | 用户导入文件时 |
 | `hw-flutter-app.inventory-work` | 工作文件（含盘存结果） | 导入时生成 + 每次提交盘存结果时更新 |
 | `hw-flutter-app.loaded-file-name` | 已加载文件名 | 导入时记录 |
-| `hw-flutter-app.settings.read-path` | 自动读取目录 | 默认 `data/Document/hw/original` |
-| `hw-flutter-app.settings.save-path` | 结果导出目录 | 默认 `data/Document/hw/result` |
+| `hw-flutter-app.settings.read-path` | 自动读取目录 | 默认 `/data/userdata/ZM/DR` |
+| `hw-flutter-app.settings.save-path` | 结果导出目录 | 默认 `/data/userdata/ZM/DC`，不可用时提示手动选择 |
 
 启动加载优先级：**工作文件 > 原始备份 > 默认路径自动加载 > 等待导入**。
 
@@ -266,9 +271,10 @@ main.dart
 | 值 | 含义 | 颜色标识 |
 |----|------|----------|
 | `0` | 正常 | 绿色 |
-| `1` | 盘亏 | 红色 |
-| `2` | 盘盈 | 蓝色 |
+| `1` | 不正常 | 红色 |
 | `null` | 未盘存 | 灰色 |
+
+> 盘盈/盘亏不再逐条录入容器，改由"保存盘存"时按库房汇总录入。完整的盘盈盘亏汇总字段（库房级 + 任务级，供 PC 导入）见 [BUSINESS_GUIDE.md](BUSINESS_GUIDE.md) 第 5.4 节。
 
 ## 多端适配
 
